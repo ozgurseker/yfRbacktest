@@ -4,7 +4,8 @@ library(quantmod)
 
 
 ## Change the file location below
-df <- read_csv("data/historicaldataAll.csv")
+df <- read_csv("data/historicaldataAll.csv") %>% group_by(symbol) %>% 
+  filter(! (duplicated(date))) %>% ungroup()
 
 ## Dont touch this part
 add_month_indicator <- function(df){
@@ -15,6 +16,10 @@ add_month_indicator <- function(df){
     mutate(months = ifelse(is.na(months), 0, months)) %>%
     mutate(months = cumsum(months)) %>% 
     select(-month)
+  longestdatesymbol <- df %>% group_by(symbol) %>% summarise(n = length(date))
+  longestdatesymbol <- longestdatesymbol$symbol[which.max(longestdatesymbol$n)]
+  dateweek <- df %>% ungroup() %>% filter(symbol == longestdatesymbol) %>% select(date, months)
+  df <- df %>% select(-months) %>% left_join(dateweek)
   return(df)
 }
 
@@ -25,6 +30,8 @@ add_week_indicator <- function(df){
   df$day[df$day == "Wed"] <- 3
   df$day[df$day == "Thu"] <- 4
   df$day[df$day == "Fri"] <- 5
+  df$day[df$day == "Sat"] <- 6
+  df$day[df$day == "Sun"] <- 7
   df$day <- as.numeric(df$day)
   df <- df %>% group_by(symbol) %>%
     mutate(weekclose = ifelse(day > lead(day), 1, 0)) %>%
@@ -32,6 +39,10 @@ add_week_indicator <- function(df){
     mutate(weeks = ifelse(is.na(weeks), 0, weeks)) %>%
     mutate(weeks = cumsum(weeks)) %>%
     select(-day)
+  longestdatesymbol <- df %>% group_by(symbol) %>% summarise(n = length(date))
+  longestdatesymbol <- longestdatesymbol$symbol[which.max(longestdatesymbol$n)]
+  dateweek <- df %>% ungroup() %>% filter(symbol == longestdatesymbol) %>% select(date, weeks)
+  df <- df %>% select(-weeks) %>% left_join(dateweek)
   return(df)
 }
 
@@ -39,12 +50,15 @@ weekly_sum <- function(df){
   return(
   df %>% group_by(symbol, weeks) %>% summarise(
     date = date[1],
+    adj_open = open[1]*adj_close[1]/close[1],
+    adj_high = max(high)*adj_close[which.max(high)]/close[which.max(high)],
+    adj_low = min(low)*adj_close[which.min(low)]/close[which.min(low)],
+    adj_close = adj_close[length(weeks)],
     volume = sum(volume),
     high = max(high),
     low = min(low),
     open = open[1],
-    close = close[length(weeks)],
-    adj_close = adj_close[length(weeks)]
+    close = close[length(weeks)]
   ) 
   )
 }
@@ -53,12 +67,15 @@ monthly_sum <- function(df){
   return(
     df %>% group_by(symbol, months) %>% summarise(
       date = date[1],
+      adj_open = open[1]*adj_close[1]/close[1],
+      adj_high = max(high)*adj_close[which.max(high)]/close[which.max(high)],
+      adj_low = min(low)*adj_close[which.min(low)]/close[which.min(low)],
+      adj_close = adj_close[length(months)],
       volume = sum(volume),
       high = max(high),
       low = min(low),
       open = open[1],
-      close = close[length(months)],
-      adj_close = adj_close[length(months)]
+      close = close[length(months)]
     )
   )
 }
@@ -94,7 +111,8 @@ df_monthly <- df_monthly %>% group_by(symbol) %>%
     m_rsi5 = RSI(adj_close, 5)
   )
 
-remcolnames <- c("date", "adj_close", "high", "close", "open", "low", "volume")
+remcolnames <- c("date", "adj_open", "adj_high", "adj_low",
+                 "adj_close", "high", "close", "open", "low", "volume")
 
 
 # Combines weekly indicators on daily data, no need to change
