@@ -13,3 +13,9 @@
 - After downloading the repo, run the **savedata.R** file to get data from yfinance.
 - Then by using **technicalanalysis.R**, you could add any indicator in daily/weekly/monthly time frame and save the combined dataset.
 - The rest is up to you. 
+
+## Next Steps 
+
+- Another script shows historical performance of specific filtering methods against XU100, buy at the open of the week and sell at the close of the week
+- Do this for biweekly and monthly
+
