@@ -19,3 +19,8 @@
 - Another script shows historical performance of specific filtering methods against XU100, buy at the open of the week and sell at the close of the week
 - Do this for biweekly and monthly
 
+## To Do List
+
+- Function that returns graph/returns for weekly picks from Monday open to Sunday open
+- Filtering method that gives weekly picks and show us which week which pick 
+
