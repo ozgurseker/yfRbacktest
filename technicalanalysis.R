@@ -1,11 +1,20 @@
 library(pander)
 library(tidyverse)
 library(quantmod)
+library(readxl)
 
 
 ## Change the file location below
 df <- read_csv("data/historicaldataAll.csv") %>% group_by(symbol) %>% 
   filter(! (duplicated(date))) %>% ungroup()
+
+## To filter ana pazar only 
+if(FALSE){
+  anapazar <- read_excel("data/tickerlistall.xlsx")
+  anapazar <- anapazar$Symbols[str_detect(anapazar$Piyasa,"Yıldız Pazar")]
+  anapazar <- c(anapazar, "XU100", "USDTRY")
+  df <- df %>% filter(symbol %in% anapazar)
+}
 
 ## Dont touch this part
 add_month_indicator <- function(df){
@@ -87,28 +96,36 @@ df <- add_month_indicator(df)
 df_monthly <- monthly_sum(df)
 
 ## Add your daily indicators here
-df <- df %>% group_by(symbol) %>% filter(length(adj_close) > 14) %>% 
+df <- df %>% group_by(symbol) %>% filter(length(adj_close) > 200) %>% 
   mutate(
     ema14 = EMA(adj_close, 14),
-    rsi = RSI(adj_close)
+    rsi = RSI(adj_close),
+    sma200 = SMA(adj_close, 200),
+    sma5 = SMA(adj_close, 5),
+    sma10 = SMA(adj_close, 10),
+    relativeVolume = volume / lag(SMA(volume, 10))
   )
 
 ## Weekly indicators here 
 ## (filter if existing number of weeks greater than what I need in indicator)
 df_weekly <- df_weekly %>% group_by(symbol) %>%
-  filter(max(weeks) > 14) %>%
+  filter(length(adj_close) > 14) %>%
   mutate(
     w_sma14 = SMA(adj_close, 14),
-    w_rsi5 = RSI(adj_close, 5)
+    w_rsi5 = RSI(adj_close, 5),
+    w_adj_open = adj_open,
+    w_prev_close = lag(adj_close)
   )
 
 ## Monthly indicators here
 ## (filter if existing number of months greater than what I need in indicator)
 df_monthly <- df_monthly %>% group_by(symbol) %>%
-  filter(max(months) > 8) %>%
+  filter(length(adj_close) > 8) %>%
   mutate(
     m_sma8 = SMA(adj_close, 8),
-    m_rsi5 = RSI(adj_close, 5)
+    m_rsi5 = RSI(adj_close, 5),
+    m_adj_open = adj_open,
+    m_prev_close = lag(adj_close)
   )
 
 remcolnames <- c("date", "adj_open", "adj_high", "adj_low",
@@ -121,7 +138,15 @@ df <- left_join(df, df_weekly %>% select(-all_of(remcolnames)))
 # Combine monthly indicators on daily data, no need to change
 df <- left_join(df, df_monthly %>% select(-all_of(remcolnames)))
 
+df <- df %>% mutate(
+  weeklyperformance = (adj_close-w_prev_close ) / w_prev_close,
+  inweekperformance = (adj_close-w_adj_open ) / w_adj_open,
+  monthlyperformance = (adj_close-m_prev_close ) / m_prev_close,
+  inmonthperformance = (adj_close-m_adj_open ) / m_adj_open
+) %>% mutate(across(where(is.numeric), ~ round(.x, 4)))
+
 # Change save location
+
 write_csv(df, "data/save.csv")
 
 
