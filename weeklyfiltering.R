@@ -116,7 +116,13 @@ if(TRUE){
   u <- usdreturns %>% ungroup() %>% select(weeks, weeklyperformance)
   colnames(x)[2] <- "xu100perf"
   colnames(u)[2] <- "usdperf"
-  alldf <- left_join(left_join(portfolioreturns, x),u)
+  pr <- portfolioreturns
+  for(wk in x$weeks[! x$weeks %in% portfolioreturns$weeks]){
+    pr <- pr %>% add_row(weeks = wk,
+                         filterWeeklyPerformance = 0,
+                         numberfirms = 0)
+  }
+  alldf <- left_join(left_join(pr, x),u)
   excessxu100 <- alldf$filterWeeklyPerformance - alldf$xu100perf
   sharpe_xu100 <- mean(excessxu100, na.rm = TRUE)/sd(excessxu100, na.rm = TRUE)
   excessUSD <- alldf$filterWeeklyPerformance - alldf$usdperf
