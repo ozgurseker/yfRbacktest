@@ -114,7 +114,9 @@ df_weekly <- df_weekly %>% group_by(symbol) %>%
     w_sma14 = SMA(adj_close, 14),
     w_rsi5 = RSI(adj_close, 5),
     w_adj_open = adj_open,
-    w_prev_close = lag(adj_close)
+    w_prev_close = lag(adj_close),
+    w_low = low,
+    w_adj_low = adj_low
   )
 
 ## Monthly indicators here

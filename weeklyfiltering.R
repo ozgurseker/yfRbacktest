@@ -1,5 +1,19 @@
 
+# Adjustments
+penalize <- FALSE
+penalize_rate <- 0.005
 
+trimming <- FALSE
+trimrate <- 0.10
+
+riskfreerate <- 0.30
+# Add buy only low < prev close daily
+# Add buy only if low < prev close weekly
+# Add buy only if low < open
+# Buy only n_firms is less than 10
+# Buy in the mid of low - high in monday
+# Erase best and worst %10 to see new performance
+# 
 
 # Get df data.frame from the file technicalanalysis.R
 
@@ -22,10 +36,6 @@ dff <- df %>% group_by(symbol) %>%
           momentum10
         ) %>% arrange(weeks)
 
-# Adjustments
-penalize <- TRUE
-penalize_rate <- 0.005
-
 # See last selections
 #View(dff %>% ungroup() %>% filter(weeks > max(weeks)-2) %>% 
 #       arrange(weeks) %>% select(date, symbol, nextweekPerformance) )
@@ -37,6 +47,12 @@ portfolioreturns <- dff %>% ungroup() %>% group_by(weeks) %>% arrange(weeks) %>%
 if(penalize){
   portfolioreturns <- portfolioreturns %>% 
     mutate(filterWeeklyPerformance = filterWeeklyPerformance - penalize_rate)
+}
+
+if(trimming){
+  portfolioreturns <- portfolioreturns %>% 
+    filter(between(filterWeeklyPerformance, quantile(filterWeeklyPerformance, trimrate, na.rm = TRUE), 
+                                     quantile(filterWeeklyPerformance, 1-trimrate, na.rm = TRUE)))
 }
 
 xu100returns <- df %>% filter(symbol == "XU100") %>% filter(weekclose == 1) %>% mutate(
@@ -58,17 +74,20 @@ xu100money <- c(xu100)
 filtermoney <- c(filter)
 for(week in weeks){
   if(week %in% portfolioreturns$weeks){
-    filter <- filter*(1+portfolioreturns$filterWeeklyPerformance[portfolioreturns$weeks == week])
+    r <- portfolioreturns$filterWeeklyPerformance[portfolioreturns$weeks == week]
+    filter <- filter*(1+ifelse(is.na(r),0,r))
   }
   
   filtermoney <- c(filtermoney, filter)
   if(week %in% xu100returns$weeks){
-    xu100 <- xu100*(1+xu100returns$weeklyperformance[xu100returns$weeks == week])
+    r <- xu100returns$weeklyperformance[xu100returns$weeks == week]
+    xu100 <- xu100*(1+ifelse(is.na(r),0,r))
   }
   xu100money <- c(xu100money, xu100)
   
   if(week %in% usdreturns$weeks){
-    usdm <- usdm*(1+usdreturns$weeklyperformance[usdreturns$weeks == week])
+    r <- usdreturns$weeklyperformance[usdreturns$weeks == week]
+    usdm <- usdm*(1+ifelse(is.na(r),0,r))
   }
   usdmoney <- c(usdmoney, usdm)
   
@@ -121,33 +140,44 @@ dfreturns %>% filter(weeks == max(weeks))
 
 # Find Sharpe Ratios 
 if(TRUE){
+  
+  annualizeweekly <- function(rs){ (1+rs)^52 - 1 }
   x <- xu100returns %>% ungroup() %>% select(weeks, weeklyperformance)
   u <- usdreturns %>% ungroup() %>% select(weeks, weeklyperformance)
   colnames(x)[2] <- "xu100perf"
   colnames(u)[2] <- "usdperf"
   pr <- portfolioreturns
-  for(wk in x$weeks[! x$weeks %in% portfolioreturns$weeks]){
+  for(wk in min(portfolioreturns$weeks):max(min(portfolioreturns$weeks))){
     pr <- pr %>% add_row(weeks = wk,
                          filterWeeklyPerformance = 0,
                          numberfirms = 0)
   }
   alldf <- left_join(left_join(pr, x),u)
   excessxu100 <- alldf$filterWeeklyPerformance - alldf$xu100perf
-  sharpe_xu100 <- mean(excessxu100, na.rm = TRUE)/sd(excessxu100, na.rm = TRUE)
+  sharpe_xu100 <- 52^(1/2)*mean(excessxu100, na.rm = TRUE)/sd(excessxu100, na.rm = TRUE)
   excessUSD <- alldf$filterWeeklyPerformance - alldf$usdperf
-  sharpe_usd <- mean(excessUSD, na.rm = TRUE)/sd(excessUSD, na.rm = TRUE)
-  sharpe_free <- mean(alldf$filterWeeklyPerformance, na.rm = TRUE)/sd(alldf$filterWeeklyPerformance, na.rm = TRUE)
+  sharpe_usd <- 52^(1/2)*mean(excessUSD, na.rm = TRUE)/sd(excessUSD, na.rm = TRUE)
+  sharpe_free <- 52^(1/2)*mean(alldf$filterWeeklyPerformance - riskfreerate/50, na.rm = TRUE)/sd(alldf$filterWeeklyPerformance- riskfreerate/50, na.rm = TRUE)
   dfsharpe <- data_frame(sharpe_xu100 = sharpe_xu100, sharpe_usd = sharpe_usd, sharpe_free = sharpe_free)
   dfsharpe2 <- alldf %>% ungroup() %>% group_by(numberfirms) %>% 
     filter(!is.na(filterWeeklyPerformance)) %>% 
     summarise(sharpe_bist100 = mean(filterWeeklyPerformance-xu100perf) / sd(filterWeeklyPerformance-xu100perf),
               sharpe_usdtry = mean(filterWeeklyPerformance-usdperf) / sd(filterWeeklyPerformance-usdperf),
               sharpe_0 = mean(filterWeeklyPerformance) / sd(filterWeeklyPerformance))
-    
+  
+  #annualized
+  excessxu100 <- annualizeweekly(alldf$filterWeeklyPerformance) - annualizeweekly(alldf$xu100perf)
+  sharpe_xu100 <- mean(excessxu100, na.rm = TRUE)/sd(excessxu100, na.rm = TRUE)
+  excessUSD <- annualizeweekly(alldf$filterWeeklyPerformance) - annualizeweekly(alldf$usdperf)
+  sharpe_usd <- mean(excessUSD, na.rm = TRUE)/sd(excessUSD, na.rm = TRUE)
+  sharpe_free <- mean(annualizeweekly(alldf$filterWeeklyPerformance), na.rm = TRUE)/sd(annualizeweekly(alldf$filterWeeklyPerformance), na.rm = TRUE)
+  dfsharpe3 <- data_frame(sharpe_xu100 = sharpe_xu100, sharpe_usd = sharpe_usd, sharpe_free = sharpe_free)
+  
 }
 
 dfreturns %>% filter(weeks == max(weeks))
 dfsharpe
+dfsharpe3
 
 
 
