@@ -3,6 +3,7 @@
 # Working weekly filters 
 
 #### Filter 1 ####
+# 200x in 366 weeks 
 dff <- df %>% group_by(symbol) %>% 
   mutate(momentum10 = adj_close > lag(adj_close,10)*1.1) %>% # Momentum(10) > 1
   filter(! symbol %in% c("XU100", "USDTRY")) %>%
