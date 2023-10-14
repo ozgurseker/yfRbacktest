@@ -9,7 +9,7 @@ df <- read_csv("data/historicaldataAll.csv") %>% group_by(symbol) %>%
   filter(! (duplicated(date))) %>% ungroup()
 
 ## To filter ana pazar only 
-if(FALSE){
+if(TRUE){
   anapazar <- read_excel("data/tickerlistall.xlsx")
   anapazar <- anapazar$Symbols[str_detect(anapazar$Piyasa,"Yıldız Pazar")]
   anapazar <- c(anapazar, "XU100", "USDTRY")
@@ -43,7 +43,7 @@ add_week_indicator <- function(df){
   df$day[df$day == "Sun"] <- 7
   df$day <- as.numeric(df$day)
   df <- df %>% group_by(symbol) %>%
-    mutate(weekclose = ifelse(day > lead(day), 1, 0)) %>%
+    mutate(weekclose = ifelse(day > lead(day) | is.na(lead(day)), 1, 0)) %>%
     mutate(weeks = ifelse(day <= lag(day), 1, 0)) %>%
     mutate(weeks = ifelse(is.na(weeks), 0, weeks)) %>%
     mutate(weeks = cumsum(weeks)) %>%
