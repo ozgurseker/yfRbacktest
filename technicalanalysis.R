@@ -147,6 +147,6 @@ df <- df %>% mutate(
 
 # Change save location
 
-write_csv(df, "data/save.csv")
+# write_csv(df, "data/save.csv")
 
 
