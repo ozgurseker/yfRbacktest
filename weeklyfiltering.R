@@ -15,22 +15,20 @@ dff <- df %>% group_by(symbol) %>%
           adj_close > sma200*1.13,
           adj_close > sma5,
           adj_close > sma10,
-          #w_rsi5 > 30,
-          #m_rsi5 > 30,
+          w_rsi5 > 50,
+          m_rsi5 > 50,
           weeklyperformance < 0.20,
           monthlyperformance < 3.43,
           momentum10
         ) %>% arrange(weeks)
 
 # See last selections
-#View(dff %>% ungroup() %>% filter(weeks == max(weeks)-1) %>% 
+#View(dff %>% ungroup() %>% filter(weeks > max(weeks)-2) %>% 
 #       arrange(weeks) %>% select(date, symbol, nextweekPerformance) )
 
-#View(dff %>% ungroup() %>% filter(weeks > max(weeks) - 5) %>% 
-#       arrange(weeks) %>% select(date, symbol) %>% group_by(date) %>% count())
-
 portfolioreturns <- dff %>% ungroup() %>% group_by(weeks) %>% arrange(weeks) %>% 
-  summarise(filterWeeklyPerformance = mean(nextweekPerformance, na.rm = TRUE))
+  summarise(filterWeeklyPerformance = mean(nextweekPerformance, na.rm = TRUE),
+            numberfirms = n())
 
 xu100returns <- df %>% filter(symbol == "XU100") %>% filter(weekclose == 1) %>% mutate(
   adj_close = ifelse(date < "2020-07-29", adj_close/100, adj_close),
@@ -125,9 +123,17 @@ if(TRUE){
   sharpe_usd <- mean(excessUSD, na.rm = TRUE)/sd(excessUSD, na.rm = TRUE)
   sharpe_free <- mean(alldf$filterWeeklyPerformance, na.rm = TRUE)/sd(alldf$filterWeeklyPerformance, na.rm = TRUE)
   dfsharpe <- data_frame(sharpe_xu100 = sharpe_xu100, sharpe_usd = sharpe_usd, sharpe_free = sharpe_free)
-  
+  dfsharpe2 <- alldf %>% ungroup() %>% group_by(numberfirms) %>% 
+    filter(!is.na(filterWeeklyPerformance)) %>% 
+    summarise(sharpe_bist100 = mean(filterWeeklyPerformance-xu100perf) / sd(filterWeeklyPerformance-xu100perf),
+              sharpe_usdtry = mean(filterWeeklyPerformance-usdperf) / sd(filterWeeklyPerformance-usdperf),
+              sharpe_0 = mean(filterWeeklyPerformance) / sd(filterWeeklyPerformance))
+    
 }
 
 dfreturns %>% filter(weeks == max(weeks))
 dfsharpe
+
+
+
 

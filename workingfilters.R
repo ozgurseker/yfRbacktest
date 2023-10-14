@@ -14,8 +14,8 @@ dff <- df %>% group_by(symbol) %>%
          adj_close > sma200*1.13,
          adj_close > sma5,
          adj_close > sma10,
-         #w_rsi5 > 30,
-         #m_rsi5 > 30,
+         w_rsi5 > 50,
+         m_rsi5 > 50,
          weeklyperformance < 0.20,
          monthlyperformance < 3.43,
          momentum10
