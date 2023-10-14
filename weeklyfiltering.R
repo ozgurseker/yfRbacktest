@@ -22,6 +22,10 @@ dff <- df %>% group_by(symbol) %>%
           momentum10
         ) %>% arrange(weeks)
 
+# Adjustments
+penalize <- TRUE
+penalize_rate <- 0.005
+
 # See last selections
 #View(dff %>% ungroup() %>% filter(weeks > max(weeks)-2) %>% 
 #       arrange(weeks) %>% select(date, symbol, nextweekPerformance) )
@@ -29,6 +33,11 @@ dff <- df %>% group_by(symbol) %>%
 portfolioreturns <- dff %>% ungroup() %>% group_by(weeks) %>% arrange(weeks) %>% 
   summarise(filterWeeklyPerformance = mean(nextweekPerformance, na.rm = TRUE),
             numberfirms = n())
+
+if(penalize){
+  portfolioreturns <- portfolioreturns %>% 
+    mutate(filterWeeklyPerformance = filterWeeklyPerformance - penalize_rate)
+}
 
 xu100returns <- df %>% filter(symbol == "XU100") %>% filter(weekclose == 1) %>% mutate(
   adj_close = ifelse(date < "2020-07-29", adj_close/100, adj_close),
